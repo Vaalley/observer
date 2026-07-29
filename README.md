@@ -95,6 +95,23 @@ error instead of leaving the interaction hanging.
 If a command needs a Discord permission the bot does not have yet, re-invite it with that permission
 — the invite URL above requests none.
 
+## Agent skills
+
+This repo uses [mattpocock/skills](https://github.com/mattpocock/skills), installed in
+`.claude/skills/` and pinned by `skills-lock.json`. Repo config for them lives in `docs/agents/` and
+is summarised in [AGENTS.md](AGENTS.md). Issues are tracked as GitHub issues on this repo.
+
+The core loop, for any change worth more than a one-liner:
+
+| Step     | Skill              | What it does                                       |
+| -------- | ------------------ | -------------------------------------------------- |
+| 1. Align | `/grill-with-docs` | Interviews you; records terms in `CONTEXT.md`/ADRs |
+| 2. Spec  | `/to-spec`         | Freezes the discussion into an issue               |
+| 3. Slice | `/to-tickets`      | Splits the spec into single-session tickets        |
+| 4. Build | `/implement`       | Works a ticket, then runs `/code-review` on it     |
+
+`/ask-matt` picks the right skill when you are unsure. Update them with `npx skills@latest update`.
+
 ## License
 
 See [LICENSE](LICENSE).

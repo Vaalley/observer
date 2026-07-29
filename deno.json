@@ -11,6 +11,7 @@
 	"imports": {
 		"discord.js": "npm:discord.js@^14.27.0"
 	},
+	"exclude": [".claude", "skills-lock.json"],
 	"fmt": {
 		"useTabs": true,
 		"lineWidth": 100
