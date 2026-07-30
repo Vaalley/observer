@@ -7,15 +7,13 @@ export const status: Command = {
 		.setName("status")
 		.setDescription("Show the MCTraveler server status"),
 	async execute(interaction) {
+		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 		const serverStatus = await fetchStatus();
 		const players = serverStatus.players.length > 0
 			? serverStatus.players.join(", ")
 			: "No players online";
-		await interaction.reply({
-			content: `Players online (${serverStatus.online}): ${players}\nTPS: ${
-				serverStatus.tps.toFixed(1)
-			}`,
-			flags: MessageFlags.Ephemeral,
-		});
+		await interaction.editReply(
+			`Players online (${serverStatus.online}): ${players}\nTPS: ${serverStatus.tps.toFixed(1)}`,
+		);
 	},
 };
