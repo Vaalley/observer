@@ -112,6 +112,21 @@ The core loop, for any change worth more than a one-liner:
 
 `/ask-matt` picks the right skill when you are unsure. Update them with `npx skills@latest update`.
 
+## Deploying to Production
+
+To deploy updates to the dedicated server:
+
+```sh
+cd /root/observer
+git pull
+
+# Run once if command definitions (names, descriptions, options) changed:
+docker compose run --rm observer deno task deploy
+
+# Rebuild and restart the container:
+docker compose up -d --build
+```
+
 ## License
 
 See [LICENSE](LICENSE).
