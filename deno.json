@@ -9,6 +9,8 @@
 		"check": "deno check src scripts"
 	},
 	"imports": {
+		"@sarfarajey/gcp-edge-auth": "npm:@sarfarajey/gcp-edge-auth@^1.0.0",
+		"@sarfarajey/gcp-edge-auth/firestore": "npm:@sarfarajey/gcp-edge-auth@^1.0.0/firestore",
 		"discord.js": "npm:discord.js@^14.27.0"
 	},
 	"exclude": [".claude", "skills-lock.json"],
