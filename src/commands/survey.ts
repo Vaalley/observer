@@ -33,7 +33,7 @@ export const survey: Command = {
 				return;
 			}
 
-			const { sent, failed } = await sendSurveyInvites(users);
+			const { sent, failed } = await sendSurveyInvites(interaction.client, users);
 			await interaction.editReply(
 				`Survey sent to ${sent} user(s)${failed > 0 ? `, ${failed} failed` : ""}.`,
 			);
