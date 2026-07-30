@@ -9,11 +9,22 @@ import {
 	type Message,
 	Routes,
 } from "discord.js";
-import { saveSurveyResponse } from "./firebase.ts";
+import {
+	isFirebaseConfigured,
+	listInvitedUserIds,
+	listUsersAwaitingReminder,
+	markSurveyReminded,
+	recordSurveyInvite,
+	saveSurveyResponse,
+	setSurveyStatus,
+	type SurveyStatus,
+} from "./firebase.ts";
 
-const INVITE_TEXT =
-	"Hey! We're taking a survey for MCTraveler, a server you have played on before. " +
-	"Would you be up for answering 5 quick questions?";
+const INVITE_TEXT = "Hey! We're taking a survey to improve the MCTraveler Minecraft server. " +
+	"Would you be up for answering 5 quick questions? Can be done in literally 1 minute!";
+
+const REMINDER_TEXT =
+	"Hey, just checking in to see if you could answer the above? I won't bother you again. :)";
 
 export const SURVEY_QUESTIONS = [
 	"Great! Do you regularly join the server? Text me your response",
@@ -27,6 +38,17 @@ const ACCEPT_ID = "survey:accept";
 const DECLINE_ID = "survey:decline";
 const DM_DELAY_MS = 350;
 const DM_RETRY_BUFFER_MS = 500;
+const MAX_DM_ATTEMPTS = 3;
+const REMINDER_AFTER_MS = 24 * 60 * 60 * 1000;
+const REMINDER_SWEEP_INTERVAL_MS = 60 * 60 * 1000;
+
+/** A user the survey should go to, and how they were picked. */
+export interface SurveyTarget {
+	userId: string;
+	username: string;
+	/** Named directly, rather than swept in by a role or `@everyone`. */
+	explicit: boolean;
+}
 
 interface SurveySession {
 	userId: string;
@@ -67,50 +89,78 @@ function getRetryAfter(error: unknown): number | undefined {
 	return undefined;
 }
 
+/**
+ * DM a user, retrying only on rate limits. Discord returns the existing DM
+ * channel for a recipient, so follow-ups land under the original invite.
+ */
+async function sendDirectMessage(
+	client: Client,
+	userId: string,
+	body: Record<string, unknown>,
+): Promise<void> {
+	let attempt = 0;
+
+	while (true) {
+		attempt++;
+		try {
+			const channel = await client.rest.post(Routes.userChannels(), {
+				body: { recipient_id: userId },
+			}) as { id: string };
+			await client.rest.post(Routes.channelMessages(channel.id), { body });
+			return;
+		} catch (error) {
+			const retryAfter = getRetryAfter(error);
+			if (retryAfter === undefined || attempt >= MAX_DM_ATTEMPTS) throw error;
+			console.warn(`Rate limited while sending a DM; retrying in ${retryAfter}ms`);
+			await sleep(retryAfter + DM_RETRY_BUFFER_MS);
+		}
+	}
+}
+
 export async function sendSurveyInvites(
 	client: Client,
-	userIds: string[],
-): Promise<{ sent: number; failed: number }> {
+	targets: SurveyTarget[],
+): Promise<{ sent: number; failed: number; skipped: number }> {
+	// Only re-survey someone who was named directly; roles and @everyone skip
+	// anyone who already got an invite.
+	const alreadyInvited = await listInvitedUserIds();
+	const pending = targets.filter((target) => target.explicit || !alreadyInvited.has(target.userId));
+	const skipped = targets.length - pending.length;
+
+	const components = inviteComponents().map((row) => row.toJSON());
 	let sent = 0;
 	let failed = 0;
 
-	const components = inviteComponents().map((row) => row.toJSON());
+	for (const [index, target] of pending.entries()) {
+		if (index > 0) await sleep(DM_DELAY_MS);
 
-	for (const userId of userIds) {
-		let attempt = 0;
-		const maxAttempts = 3;
-
-		while (attempt < maxAttempts) {
-			attempt++;
-			try {
-				const channel = await client.rest.post(Routes.userChannels(), {
-					body: { recipient_id: userId },
-				}) as { id: string };
-				await client.rest.post(Routes.channelMessages(channel.id), {
-					body: { content: INVITE_TEXT, components },
-				});
-				sent++;
-				break;
-			} catch (error) {
-				const retryAfter = getRetryAfter(error);
-				if (retryAfter !== undefined && attempt < maxAttempts) {
-					console.warn(`Rate limited while sending survey; retrying in ${retryAfter}ms`);
-					await sleep(retryAfter + DM_RETRY_BUFFER_MS);
-					continue;
-				}
-
-				console.warn(`Failed to send survey invite to ${userId}:`, error);
-				failed++;
-				break;
-			}
+		try {
+			await sendDirectMessage(client, target.userId, { content: INVITE_TEXT, components });
+			sent++;
+		} catch (error) {
+			console.warn(`Failed to send survey invite to ${target.userId}:`, error);
+			failed++;
+			continue;
 		}
 
-		if (userIds.indexOf(userId) < userIds.length - 1) {
-			await sleep(DM_DELAY_MS);
+		// Recorded after the DM lands, so a failed send is not treated as invited.
+		try {
+			await recordSurveyInvite(target.userId, target.username);
+		} catch (error) {
+			console.error(`Failed to record survey invite for ${target.userId}:`, error);
 		}
 	}
 
-	return { sent, failed };
+	return { sent, failed, skipped };
+}
+
+/** Bookkeeping only — never block the reply the user is waiting on. */
+async function recordStatus(interaction: ButtonInteraction, status: SurveyStatus): Promise<void> {
+	try {
+		await setSurveyStatus(interaction.user.id, interaction.user.username, status);
+	} catch (error) {
+		console.error(`Failed to record survey ${status} for ${interaction.user.id}:`, error);
+	}
 }
 
 export async function handleSurveyButton(interaction: ButtonInteraction): Promise<boolean> {
@@ -124,6 +174,7 @@ export async function handleSurveyButton(interaction: ButtonInteraction): Promis
 			content: "No problem, maybe next time!",
 			components: [],
 		});
+		await recordStatus(interaction, "declined");
 		return true;
 	}
 
@@ -140,6 +191,7 @@ export async function handleSurveyButton(interaction: ButtonInteraction): Promis
 		content: firstQuestion,
 		components: [],
 	});
+	await recordStatus(interaction, "accepted");
 	return true;
 }
 
@@ -159,7 +211,12 @@ export async function handleSurveyMessage(message: Message): Promise<void> {
 	const completed = session.questionIndex >= SURVEY_QUESTIONS.length;
 
 	try {
-		await saveSurveyResponse(message.author.id, session.answers, completed);
+		await saveSurveyResponse(
+			message.author.id,
+			message.author.username,
+			session.answers,
+			completed,
+		);
 	} catch (error) {
 		console.error(`Failed to save survey answer for ${message.author.id}:`, error);
 		sessions.delete(message.author.id);
@@ -178,6 +235,48 @@ export async function handleSurveyMessage(message: Message): Promise<void> {
 	const nextQuestion = SURVEY_QUESTIONS[session.questionIndex];
 	if (!nextQuestion) return;
 	await message.author.send(nextQuestion);
+}
+
+async function sweepSurveyReminders(client: Client): Promise<void> {
+	const invitedBefore = new Date(Date.now() - REMINDER_AFTER_MS);
+	const userIds = await listUsersAwaitingReminder(invitedBefore);
+
+	for (const [index, userId] of userIds.entries()) {
+		if (index > 0) await sleep(DM_DELAY_MS);
+
+		try {
+			// Marked before sending: the reminder promises not to bother them
+			// again, so dropping one beats sending it twice.
+			await markSurveyReminded(userId);
+			await sendDirectMessage(client, userId, { content: REMINDER_TEXT });
+		} catch (error) {
+			console.warn(`Failed to send survey reminder to ${userId}:`, error);
+		}
+	}
+}
+
+/** Nudge, once, anyone who has sat on an invite for 24 hours. */
+export function startSurveyReminders(client: Client) {
+	if (!isFirebaseConfigured()) {
+		console.info("Firebase service account not set; survey reminders disabled");
+		return;
+	}
+
+	const sweep = async () => {
+		try {
+			await sweepSurveyReminders(client);
+		} catch (error) {
+			console.error("Survey reminder sweep failed:", error);
+		}
+	};
+
+	const schedule = () => {
+		setTimeout(() => {
+			sweep().finally(schedule);
+		}, REMINDER_SWEEP_INTERVAL_MS);
+	};
+
+	sweep().finally(schedule);
 }
 
 const USER_MENTION_RE = /<@!?(\d{17,20})>/g;
@@ -227,6 +326,8 @@ async function fetchAllGuildMembers(
 		if (!Array.isArray(page) || page.length === 0) break;
 
 		for (const raw of page) {
+			// Advance the cursor past bots too, or a page ending in one repeats forever.
+			after = raw.user.id;
 			if (raw.user.bot) continue;
 			all.push({
 				userId: raw.user.id,
@@ -235,7 +336,6 @@ async function fetchAllGuildMembers(
 				nick: raw.nick,
 				roles: raw.roles,
 			});
-			after = raw.user.id;
 		}
 
 		if (page.length < 1000) break;
@@ -271,15 +371,15 @@ function normalizeName(text: string): string {
 	return text.trim().replace(/[,;]+$/g, "").trim().toLowerCase();
 }
 
-export async function resolveMentionedUsers(
+export async function resolveSurveyTargets(
 	interaction: ChatInputCommandInteraction,
 	mentionsText: string,
-): Promise<string[]> {
+): Promise<SurveyTarget[]> {
 	if (!interaction.guildId) return [];
 
-	const userIds = new Set<string>();
+	const explicitUserIds = new Set<string>();
 	for (const match of mentionsText.matchAll(USER_MENTION_RE)) {
-		userIds.add(match[1]!);
+		explicitUserIds.add(match[1]!);
 	}
 
 	const roleIds = new Set<string>();
@@ -301,30 +401,27 @@ export async function resolveMentionedUsers(
 	const membersById = new Map<string, MemberInfo>();
 
 	if (needAllMembers) {
-		const allMembers = await fetchAllGuildMembers(interaction);
-		for (const member of allMembers) {
+		for (const member of await fetchAllGuildMembers(interaction)) {
 			membersById.set(member.userId, member);
 		}
 	}
 
-	for (const userId of userIds) {
+	for (const userId of explicitUserIds) {
 		if (membersById.has(userId)) continue;
 		const member = await fetchSingleMember(interaction, userId);
 		if (member) membersById.set(member.userId, member);
 	}
 
-	if (roleIds.size > 0 || nameParts.length > 0) {
-		const guild = interaction.guild;
-		const roles = await guild?.roles.fetch();
+	// Free-text names are either a role name or a member name.
+	const targetRoleIds = new Set<string>(roleIds);
+	if (nameParts.length > 0) {
+		const guildRoles = await interaction.guild?.roles.fetch();
 		const roleIdsByName = new Map<string, string>();
-		if (roles) {
-			for (const [id, role] of roles) {
+		if (guildRoles) {
+			for (const [id, role] of guildRoles) {
 				roleIdsByName.set(role.name.toLowerCase(), id);
 			}
 		}
-
-		const targetRoleIds = new Set<string>();
-		for (const roleId of roleIds) targetRoleIds.add(roleId);
 
 		for (const part of nameParts) {
 			const matchedRoleId = roleIdsByName.get(part);
@@ -338,20 +435,18 @@ export async function resolveMentionedUsers(
 				member.username.toLowerCase() === part ||
 				(member.globalName?.toLowerCase() === part)
 			);
-			if (matchedByName) {
-				// Keep the matched user; remove others so we only return the named user.
-				membersById.clear();
-				membersById.set(matchedByName.userId, matchedByName);
-			}
-		}
-
-		for (const [id, member] of membersById) {
-			const hasTargetRole = [...targetRoleIds].some((roleId) => member.roles.includes(roleId));
-			if (!hasTargetRole) {
-				membersById.delete(id);
-			}
+			if (matchedByName) explicitUserIds.add(matchedByName.userId);
 		}
 	}
 
-	return [...membersById.values()].map((member) => member.userId);
+	const targets: SurveyTarget[] = [];
+	for (const member of membersById.values()) {
+		const explicit = explicitUserIds.has(member.userId);
+		const included = targetEveryone || explicit ||
+			member.roles.some((roleId) => targetRoleIds.has(roleId));
+		if (!included) continue;
+		targets.push({ userId: member.userId, username: member.username, explicit });
+	}
+
+	return targets;
 }

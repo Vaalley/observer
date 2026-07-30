@@ -1,6 +1,6 @@
 import { MessageFlags, PermissionsBitField, SlashCommandBuilder } from "discord.js";
 import type { Command } from "../command.ts";
-import { resolveMentionedUsers, sendSurveyInvites } from "../survey.ts";
+import { resolveSurveyTargets, sendSurveyInvites } from "../survey.ts";
 
 export const survey: Command = {
 	data: new SlashCommandBuilder()
@@ -27,15 +27,18 @@ export const survey: Command = {
 		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
 		try {
-			const users = await resolveMentionedUsers(interaction, mentionsText);
-			if (users.length === 0) {
+			const targets = await resolveSurveyTargets(interaction, mentionsText);
+			if (targets.length === 0) {
 				await interaction.editReply("No matching users found.");
 				return;
 			}
 
-			const { sent, failed } = await sendSurveyInvites(interaction.client, users);
+			const { sent, failed, skipped } = await sendSurveyInvites(interaction.client, targets);
+			const notes: string[] = [];
+			if (skipped > 0) notes.push(`${skipped} already surveyed`);
+			if (failed > 0) notes.push(`${failed} failed`);
 			await interaction.editReply(
-				`Survey sent to ${sent} user(s)${failed > 0 ? `, ${failed} failed` : ""}.`,
+				`Survey sent to ${sent} user(s)${notes.length > 0 ? ` (${notes.join(", ")})` : ""}.`,
 			);
 		} catch (error) {
 			console.error("Survey command failed:", error);

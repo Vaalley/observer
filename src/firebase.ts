@@ -1,7 +1,27 @@
 import { getServiceAccountToken } from "@sarfarajey/gcp-edge-auth";
-import { firestoreBase, fsCreate } from "@sarfarajey/gcp-edge-auth/firestore";
+import { firestoreBase, fsUpdate } from "@sarfarajey/gcp-edge-auth/firestore";
 
-async function loadServiceAccountJson(): Promise<string> {
+/** Where a user is in the survey flow. Drives reminders and re-invite filtering. */
+export type SurveyStatus = "invited" | "reminded" | "accepted" | "declined" | "completed";
+
+const SURVEYS_COLLECTION = "surveys";
+
+interface ServiceAccount {
+	json: string;
+	projectId: string;
+}
+
+let cachedServiceAccount: ServiceAccount | undefined;
+
+export function isFirebaseConfigured(): boolean {
+	return Boolean(
+		Deno.env.get("FIREBASE_SERVICE_ACCOUNT_BASE64") ??
+			Deno.env.get("FIREBASE_SERVICE_ACCOUNT_JSON") ??
+			Deno.env.get("FIREBASE_SERVICE_ACCOUNT_PATH"),
+	);
+}
+
+async function readServiceAccountJson(): Promise<string> {
 	const base64 = Deno.env.get("FIREBASE_SERVICE_ACCOUNT_BASE64")?.replace(/\s/g, "");
 	if (base64) {
 		try {
@@ -24,35 +44,172 @@ async function loadServiceAccountJson(): Promise<string> {
 	return await Deno.readTextFile(path);
 }
 
-export async function saveSurveyResponse(
-	userId: string,
-	responses: string[],
-	completed = false,
-): Promise<void> {
-	const saJson = await loadServiceAccountJson();
-	const serviceAccount = JSON.parse(saJson);
-	const projectId = serviceAccount.project_id;
+async function loadServiceAccount(): Promise<ServiceAccount> {
+	if (cachedServiceAccount) return cachedServiceAccount;
 
-	const token = await getServiceAccountToken(saJson);
+	const json = await readServiceAccountJson();
+	cachedServiceAccount = { json, projectId: JSON.parse(json).project_id };
+	return cachedServiceAccount;
+}
+
+/** Base document URL plus a (library-cached) access token for the surveys database. */
+async function firestore(): Promise<{ base: string; token: string }> {
+	const { json, projectId } = await loadServiceAccount();
+	const token = await getServiceAccountToken(json);
 	if (!token) {
 		throw new Error("Failed to get Firebase service account token");
 	}
+	return { base: firestoreBase(projectId), token };
+}
 
-	const base = firestoreBase(projectId);
+/** Merge `fields` into `surveys/{userId}`, creating the document if it is new. */
+async function writeSurveyFields(
+	userId: string,
+	fields: Record<string, unknown>,
+): Promise<void> {
+	const { base, token } = await firestore();
+	const written = await fsUpdate(`${base}/${SURVEYS_COLLECTION}/${userId}`, fields, token);
+	if (!written) {
+		throw new Error(`Failed to write survey document for ${userId}`);
+	}
+}
+
+interface FirestoreDocument {
+	name?: string;
+	fields?: Record<string, { stringValue?: string; timestampValue?: string }>;
+}
+
+/**
+ * Run a structured query against the surveys database.
+ *
+ * Unlike the library's `fsRunQuery` this throws instead of returning `[]` on
+ * failure: callers use the result to decide who has *not* been surveyed yet, so
+ * an outage must not read as "nobody".
+ */
+async function runQuery(structuredQuery: unknown): Promise<FirestoreDocument[]> {
+	const { base, token } = await firestore();
+	const response = await fetch(`${base}:runQuery`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${token}`,
+		},
+		body: JSON.stringify({ structuredQuery }),
+	});
+
+	if (!response.ok) {
+		throw new Error(`Firestore query failed with ${response.status}: ${await response.text()}`);
+	}
+
+	const results = await response.json() as Array<{ document?: FirestoreDocument }>;
+	if (!Array.isArray(results)) return [];
+	return results.flatMap((result) => result.document ? [result.document] : []);
+}
+
+/** The document id of `surveys/{userId}` is the Discord user id. */
+function documentUserId(document: FirestoreDocument): string | undefined {
+	return document.name?.split("/").pop();
+}
+
+/** Record that an invite DM went out, resetting any state from an earlier run. */
+export async function recordSurveyInvite(userId: string, username: string): Promise<void> {
+	const now = new Date().toISOString();
+	await writeSurveyFields(userId, {
+		userId: { stringValue: userId },
+		username: { stringValue: username },
+		status: { stringValue: "invited" },
+		invitedAt: { timestampValue: now },
+		remindedAt: { nullValue: null },
+		completedAt: { nullValue: null },
+		updatedAt: { timestampValue: now },
+	});
+}
+
+export async function setSurveyStatus(
+	userId: string,
+	username: string,
+	status: SurveyStatus,
+): Promise<void> {
+	await writeSurveyFields(userId, {
+		userId: { stringValue: userId },
+		username: { stringValue: username },
+		status: { stringValue: status },
+		updatedAt: { timestampValue: new Date().toISOString() },
+	});
+}
+
+export async function markSurveyReminded(userId: string): Promise<void> {
+	const now = new Date().toISOString();
+	await writeSurveyFields(userId, {
+		status: { stringValue: "reminded" },
+		remindedAt: { timestampValue: now },
+		updatedAt: { timestampValue: now },
+	});
+}
+
+export async function saveSurveyResponse(
+	userId: string,
+	username: string,
+	responses: string[],
+	completed = false,
+): Promise<void> {
+	const now = new Date().toISOString();
 	const fields: Record<string, unknown> = {
 		userId: { stringValue: userId },
+		username: { stringValue: username },
+		status: { stringValue: completed ? "completed" : "accepted" },
 		responses: {
 			arrayValue: { values: responses.map((r) => ({ stringValue: r })) },
 		},
-		updatedAt: { timestampValue: new Date().toISOString() },
+		updatedAt: { timestampValue: now },
 	};
 
 	if (completed) {
-		fields.completedAt = { timestampValue: new Date().toISOString() };
+		fields.completedAt = { timestampValue: now };
 	}
 
-	const created = await fsCreate(`${base}/surveys/${userId}`, fields, token);
-	if (!created) {
-		throw new Error("Failed to save survey response to Firestore");
+	await writeSurveyFields(userId, fields);
+}
+
+/** Every user who has ever been sent a survey invite. */
+export async function listInvitedUserIds(): Promise<Set<string>> {
+	const documents = await runQuery({
+		from: [{ collectionId: SURVEYS_COLLECTION }],
+		select: { fields: [{ fieldPath: "__name__" }] },
+	});
+
+	const userIds = new Set<string>();
+	for (const document of documents) {
+		const userId = documentUserId(document);
+		if (userId) userIds.add(userId);
 	}
+	return userIds;
+}
+
+/**
+ * Users invited before `invitedBefore` who have neither replied nor been
+ * reminded. Filtering `invitedAt` here rather than in the query keeps this to a
+ * single equality filter, which Firestore indexes automatically.
+ */
+export async function listUsersAwaitingReminder(invitedBefore: Date): Promise<string[]> {
+	const documents = await runQuery({
+		from: [{ collectionId: SURVEYS_COLLECTION }],
+		where: {
+			fieldFilter: {
+				field: { fieldPath: "status" },
+				op: "EQUAL",
+				value: { stringValue: "invited" },
+			},
+		},
+	});
+
+	const userIds: string[] = [];
+	for (const document of documents) {
+		const userId = documentUserId(document);
+		const invitedAt = document.fields?.invitedAt?.timestampValue;
+		if (!userId || !invitedAt) continue;
+		if (new Date(invitedAt) > invitedBefore) continue;
+		userIds.push(userId);
+	}
+	return userIds;
 }
