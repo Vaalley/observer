@@ -1,11 +1,13 @@
 import { Client, Events, GatewayIntentBits, MessageFlags, Partials } from "discord.js";
 import { config } from "./config.ts";
 import { commands } from "./commands/mod.ts";
+import { handleChatBridgeMessage, startChatBridge } from "./chat-bridge.ts";
 import { handleSurveyButton, handleSurveyMessage } from "./survey.ts";
 
 const client = new Client({
 	intents: [
 		GatewayIntentBits.Guilds,
+		GatewayIntentBits.GuildMessages,
 		GatewayIntentBits.DirectMessages,
 		GatewayIntentBits.MessageContent,
 	],
@@ -14,13 +16,15 @@ const client = new Client({
 
 client.once(Events.ClientReady, (ready) => {
 	console.info(`Logged in as ${ready.user.tag}`);
+	startChatBridge(client);
 });
 
 client.on(Events.MessageCreate, async (message) => {
 	try {
+		if (await handleChatBridgeMessage(message)) return;
 		await handleSurveyMessage(message);
 	} catch (error) {
-		console.error("Survey message handler failed:", error);
+		console.error("Message handler failed:", error);
 	}
 });
 

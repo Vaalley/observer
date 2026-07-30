@@ -6,6 +6,16 @@ export interface StatusResponse {
 	tps: number;
 }
 
+export interface ChatMessage {
+	timestamp: number;
+	sender: string;
+	content: string;
+}
+
+interface ChatResponse {
+	messages: ChatMessage[];
+}
+
 interface BroadcastRequest {
 	sender: string;
 	content: string;
@@ -42,4 +52,16 @@ export async function sendBroadcast(sender: string, content: string): Promise<vo
 	if (!response.ok) {
 		throw new Error(`Conduit returned ${response.status}`);
 	}
+}
+
+export async function fetchChat(since: number): Promise<ChatMessage[]> {
+	const response = await fetch(`${config.conduitUrl}/chat?since=${since}`, {
+		headers: { Authorization: `Bearer ${ensureToken()}` },
+		signal: AbortSignal.timeout(CONDUIT_TIMEOUT_MS),
+	});
+	if (!response.ok) {
+		throw new Error(`Conduit returned ${response.status}`);
+	}
+	const body = await response.json() as ChatResponse;
+	return body.messages;
 }

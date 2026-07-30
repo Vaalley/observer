@@ -19,14 +19,18 @@ cp .env.example .env
 Fill in `DISCORD_TOKEN`, `DISCORD_APP_ID` and `DISCORD_GUILD_ID`. Only the token is secret; see
 [.env.example](.env.example) for where each value comes from.
 
+If you want the two-way game chat bridge, also set `DISCORD_CHAT_CHANNEL_ID` to a Discord text
+channel ID.
+
 Then invite the bot to the server, replacing the id with your `DISCORD_APP_ID`:
 
 ```
-https://discord.com/oauth2/authorize?client_id=DISCORD_APP_ID&permissions=0&scope=bot%20applications.commands
+https://discord.com/oauth2/authorize?client_id=DISCORD_APP_ID&permissions=3072&scope=bot%20applications.commands
 ```
 
 The `applications.commands` scope is required, otherwise registering commands fails with
-`403 Missing Access`.
+`403 Missing Access`. The `Send Messages` and `View Channel` permissions are needed for the chat
+bridge; you can use `permissions=0` if you only need the slash commands.
 
 ## Register slash commands
 
