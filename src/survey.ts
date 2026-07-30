@@ -5,9 +5,9 @@ import {
 	ButtonStyle,
 	ChannelType,
 	type ChatInputCommandInteraction,
-	type GuildMember,
+	type Client,
 	type Message,
-	type User,
+	Routes,
 } from "discord.js";
 import { saveSurveyResponse } from "./firebase.ts";
 
@@ -67,18 +67,28 @@ function getRetryAfter(error: unknown): number | undefined {
 	return undefined;
 }
 
-export async function sendSurveyInvites(users: User[]): Promise<{ sent: number; failed: number }> {
+export async function sendSurveyInvites(
+	client: Client,
+	userIds: string[],
+): Promise<{ sent: number; failed: number }> {
 	let sent = 0;
 	let failed = 0;
 
-	for (const user of users) {
+	const components = inviteComponents().map((row) => row.toJSON());
+
+	for (const userId of userIds) {
 		let attempt = 0;
 		const maxAttempts = 3;
 
 		while (attempt < maxAttempts) {
 			attempt++;
 			try {
-				await user.send({ content: INVITE_TEXT, components: inviteComponents() });
+				const channel = await client.rest.post(Routes.userChannels(), {
+					body: { recipient_id: userId },
+				}) as { id: string };
+				await client.rest.post(Routes.channelMessages(channel.id), {
+					body: { content: INVITE_TEXT, components },
+				});
 				sent++;
 				break;
 			} catch (error) {
@@ -89,13 +99,13 @@ export async function sendSurveyInvites(users: User[]): Promise<{ sent: number; 
 					continue;
 				}
 
-				console.warn(`Failed to send survey invite to ${user.id}:`, error);
+				console.warn(`Failed to send survey invite to ${userId}:`, error);
 				failed++;
 				break;
 			}
 		}
 
-		if (users.indexOf(user) < users.length - 1) {
+		if (userIds.indexOf(userId) < userIds.length - 1) {
 			await sleep(DM_DELAY_MS);
 		}
 	}
@@ -173,16 +183,99 @@ export async function handleSurveyMessage(message: Message): Promise<void> {
 const USER_MENTION_RE = /<@!?(\d{17,20})>/g;
 const ROLE_MENTION_RE = /<@&(\d{17,20})>/g;
 
+interface RawUser {
+	id: string;
+	username: string;
+	global_name?: string | null;
+	display_name?: string | null;
+	bot?: boolean;
+}
+
+interface RawMember {
+	user: RawUser;
+	roles: string[];
+	nick?: string | null;
+}
+
+interface MemberInfo {
+	userId: string;
+	username: string;
+	globalName?: string | null;
+	nick?: string | null;
+	roles: string[];
+}
+
+function displayNameFor(member: MemberInfo): string {
+	return member.nick ?? member.globalName ?? member.username;
+}
+
+async function fetchAllGuildMembers(
+	interaction: ChatInputCommandInteraction,
+): Promise<MemberInfo[]> {
+	const client = interaction.client;
+	const guildId = interaction.guildId;
+	if (!guildId) return [];
+
+	const all: MemberInfo[] = [];
+	let after: string | undefined;
+
+	while (true) {
+		const query = new URLSearchParams({ limit: "1000" });
+		if (after) query.set("after", after);
+
+		const page = await client.rest.get(Routes.guildMembers(guildId), { query }) as RawMember[];
+		if (!Array.isArray(page) || page.length === 0) break;
+
+		for (const raw of page) {
+			if (raw.user.bot) continue;
+			all.push({
+				userId: raw.user.id,
+				username: raw.user.username,
+				globalName: raw.user.global_name ?? raw.user.display_name,
+				nick: raw.nick,
+				roles: raw.roles,
+			});
+			after = raw.user.id;
+		}
+
+		if (page.length < 1000) break;
+	}
+
+	return all;
+}
+
+async function fetchSingleMember(
+	interaction: ChatInputCommandInteraction,
+	userId: string,
+): Promise<MemberInfo | undefined> {
+	const client = interaction.client;
+	const guildId = interaction.guildId;
+	if (!guildId) return undefined;
+
+	try {
+		const raw = await client.rest.get(Routes.guildMember(guildId, userId)) as RawMember;
+		if (!raw || raw.user.bot) return undefined;
+		return {
+			userId: raw.user.id,
+			username: raw.user.username,
+			globalName: raw.user.global_name ?? raw.user.display_name,
+			nick: raw.nick,
+			roles: raw.roles,
+		};
+	} catch {
+		return undefined;
+	}
+}
+
 function normalizeName(text: string): string {
 	return text.trim().replace(/[,;]+$/g, "").trim().toLowerCase();
 }
 
-async function resolveMentionedUsers(
+export async function resolveMentionedUsers(
 	interaction: ChatInputCommandInteraction,
 	mentionsText: string,
-): Promise<User[]> {
-	const guild = interaction.guild;
-	if (!guild) return [];
+): Promise<string[]> {
+	if (!interaction.guildId) return [];
 
 	const userIds = new Set<string>();
 	for (const match of mentionsText.matchAll(USER_MENTION_RE)) {
@@ -195,31 +288,6 @@ async function resolveMentionedUsers(
 	}
 
 	const targetEveryone = mentionsText.includes("@everyone") || mentionsText.includes("@here");
-	const membersById = new Map<string, GuildMember>();
-
-	if (targetEveryone) {
-		const everyone = await guild.members.fetch();
-		everyone.forEach((member) => membersById.set(member.id, member));
-		return [...membersById.values()]
-			.filter((member) => !member.user.bot)
-			.map((member) => member.user);
-	}
-
-	const allMembers = await guild.members.fetch();
-	const allRoles = await guild.roles.fetch();
-
-	for (const roleId of roleIds) {
-		const role = allRoles.get(roleId);
-		if (!role) continue;
-		allMembers
-			.filter((member) => member.roles.cache.has(role.id))
-			.forEach((member) => membersById.set(member.id, member));
-	}
-
-	for (const userId of userIds) {
-		const member = allMembers.get(userId);
-		if (member) membersById.set(member.id, member);
-	}
 
 	const leftover = mentionsText
 		.replaceAll(USER_MENTION_RE, "")
@@ -229,26 +297,61 @@ async function resolveMentionedUsers(
 		.map(normalizeName)
 		.filter((part) => part.length > 0 && part !== "everyone" && part !== "here");
 
-	for (const part of nameParts) {
-		const roleByName = allRoles.find((role) => role.name.toLowerCase() === part);
-		if (roleByName) {
-			allMembers
-				.filter((member) => member.roles.cache.has(roleByName.id))
-				.forEach((member) => membersById.set(member.id, member));
-			continue;
-		}
+	const needAllMembers = targetEveryone || roleIds.size > 0 || nameParts.length > 0;
+	const membersById = new Map<string, MemberInfo>();
 
-		const memberByName = allMembers.find((member) =>
-			member.displayName.toLowerCase() === part ||
-			member.user.username.toLowerCase() === part ||
-			(member.user.globalName?.toLowerCase() === part)
-		);
-		if (memberByName) membersById.set(memberByName.id, memberByName);
+	if (needAllMembers) {
+		const allMembers = await fetchAllGuildMembers(interaction);
+		for (const member of allMembers) {
+			membersById.set(member.userId, member);
+		}
 	}
 
-	return [...membersById.values()]
-		.filter((member) => !member.user.bot)
-		.map((member) => member.user);
-}
+	for (const userId of userIds) {
+		if (membersById.has(userId)) continue;
+		const member = await fetchSingleMember(interaction, userId);
+		if (member) membersById.set(member.userId, member);
+	}
 
-export { resolveMentionedUsers };
+	if (roleIds.size > 0 || nameParts.length > 0) {
+		const guild = interaction.guild;
+		const roles = await guild?.roles.fetch();
+		const roleIdsByName = new Map<string, string>();
+		if (roles) {
+			for (const [id, role] of roles) {
+				roleIdsByName.set(role.name.toLowerCase(), id);
+			}
+		}
+
+		const targetRoleIds = new Set<string>();
+		for (const roleId of roleIds) targetRoleIds.add(roleId);
+
+		for (const part of nameParts) {
+			const matchedRoleId = roleIdsByName.get(part);
+			if (matchedRoleId) {
+				targetRoleIds.add(matchedRoleId);
+				continue;
+			}
+
+			const matchedByName = [...membersById.values()].find((member) =>
+				displayNameFor(member).toLowerCase() === part ||
+				member.username.toLowerCase() === part ||
+				(member.globalName?.toLowerCase() === part)
+			);
+			if (matchedByName) {
+				// Keep the matched user; remove others so we only return the named user.
+				membersById.clear();
+				membersById.set(matchedByName.userId, matchedByName);
+			}
+		}
+
+		for (const [id, member] of membersById) {
+			const hasTargetRole = [...targetRoleIds].some((roleId) => member.roles.includes(roleId));
+			if (!hasTargetRole) {
+				membersById.delete(id);
+			}
+		}
+	}
+
+	return [...membersById.values()].map((member) => member.userId);
+}

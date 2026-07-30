@@ -4,12 +4,7 @@ import { commands } from "./commands/mod.ts";
 import { handleSurveyButton, handleSurveyMessage } from "./survey.ts";
 
 const client = new Client({
-	intents: [
-		GatewayIntentBits.Guilds,
-		GatewayIntentBits.GuildMembers,
-		GatewayIntentBits.DirectMessages,
-		GatewayIntentBits.MessageContent,
-	],
+	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.DirectMessages],
 });
 
 client.once(Events.ClientReady, (ready) => {
