@@ -2,7 +2,7 @@ import { getServiceAccountToken } from "@sarfarajey/gcp-edge-auth";
 import { firestoreBase, fsCreate } from "@sarfarajey/gcp-edge-auth/firestore";
 
 async function loadServiceAccountJson(): Promise<string> {
-	const base64 = Deno.env.get("FIREBASE_SERVICE_ACCOUNT_BASE64");
+	const base64 = Deno.env.get("FIREBASE_SERVICE_ACCOUNT_BASE64")?.replace(/\s/g, "");
 	if (base64) {
 		try {
 			return atob(base64);
