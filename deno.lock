@@ -1,6 +1,7 @@
 {
   "version": "5",
   "specifiers": {
+    "npm:@sarfarajey/gcp-edge-auth@1": "1.0.0",
     "npm:discord.js@^14.27.0": "14.27.0"
   },
   "npm": {
@@ -75,6 +76,9 @@
     "@sapphire/snowflake@3.5.5": {
       "integrity": "sha512-xzvBr1Q1c4lCe7i6sRnrofxeO1QTP/LKQ6A6qy0iB4x5yfiSfARMEQEghojzTNALDTcv8En04qYNIco9/K9eZQ=="
     },
+    "@sarfarajey/gcp-edge-auth@1.0.0": {
+      "integrity": "sha512-c9nIi+jlOij2gfRZ0dXhYZgDnT+D8nqUiMXQmGn8N7wk/LYRiOOmZYwUomR5oyseFMUxZQrzCceJWS3HW2ZMbw=="
+    },
     "@types/node@26.1.1": {
       "integrity": "sha512-nxAkRSVkN1Y0JC1W8ky/fTfkGsMmcrRsbx+3XoZE+rMOX71kLYTV7fLXpqud1GpbpP5TuffXFqfX7fH2GgZREw==",
       "dependencies": [
@@ -141,6 +145,7 @@
   },
   "workspace": {
     "dependencies": [
+      "npm:@sarfarajey/gcp-edge-auth@1",
       "npm:discord.js@^14.27.0"
     ]
   }
