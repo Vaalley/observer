@@ -1,0 +1,9 @@
+services:
+  observer:
+    build: .
+    env_file: .env
+    # Use host networking so the bot can reach Conduit's HTTP interface on 127.0.0.1.
+    # If your setup separates them by Docker network, remove this and point CONDUIT_URL
+    # at the Conduit container instead.
+    network_mode: host
+    restart: unless-stopped

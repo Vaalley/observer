@@ -21,11 +21,22 @@ client.on(Events.InteractionCreate, async (interaction) => {
 		await command.execute(interaction);
 	} catch (error) {
 		console.error(`Command ${interaction.commandName} failed:`, error);
-		const reply = { content: "Something went wrong.", flags: MessageFlags.Ephemeral } as const;
-		if (interaction.replied || interaction.deferred) {
-			await interaction.followUp(reply);
-		} else {
-			await interaction.reply(reply);
+		try {
+			if (interaction.replied) {
+				await interaction.followUp({
+					content: "Something went wrong.",
+					flags: MessageFlags.Ephemeral,
+				});
+			} else if (interaction.deferred) {
+				await interaction.editReply("Something went wrong.");
+			} else {
+				await interaction.reply({
+					content: "Something went wrong.",
+					flags: MessageFlags.Ephemeral,
+				});
+			}
+		} catch (replyError) {
+			console.error("Failed to send error reply:", replyError);
 		}
 	}
 });
