@@ -1,10 +1,15 @@
-import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
+import { Client, Events, GatewayIntentBits, MessageFlags, Partials } from "discord.js";
 import { config } from "./config.ts";
 import { commands } from "./commands/mod.ts";
 import { handleSurveyButton, handleSurveyMessage } from "./survey.ts";
 
 const client = new Client({
-	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.DirectMessages],
+	intents: [
+		GatewayIntentBits.Guilds,
+		GatewayIntentBits.DirectMessages,
+		GatewayIntentBits.MessageContent,
+	],
+	partials: [Partials.Channel, Partials.Message],
 });
 
 client.once(Events.ClientReady, (ready) => {
