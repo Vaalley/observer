@@ -2,6 +2,7 @@
   "version": "5",
   "specifiers": {
     "npm:@sarfarajey/gcp-edge-auth@1": "1.0.0",
+    "npm:discord.js@14.27.0": "14.27.0",
     "npm:discord.js@^14.27.0": "14.27.0"
   },
   "npm": {
