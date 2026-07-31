@@ -9,7 +9,7 @@ Observer is the Discord bot for the MCTraveler Minecraft server. Here's everythi
 Messages sent in the designated chat channel are relayed into the game, and player chat is mirrored back here — one shared conversation between Discord and Minecraft.
 
 **📊 Server status — \`/status\`**
-Check who's currently online and how the server is running, right from Discord.
+See who's online, a color-coded performance indicator, and Discord's live latency — all at a glance.
 
 **💬 Feedback — \`/feedback\`**
 Report a bug, request a feature, or share other feedback. Fill out a short form and it's filed straight to the developers — no need to leave Discord.
