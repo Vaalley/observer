@@ -3,6 +3,7 @@ import { config } from "./config.ts";
 import { commands } from "./commands/mod.ts";
 import { handleChatBridgeMessage, startChatBridge } from "./chat-bridge.ts";
 import { handleSurveyButton, handleSurveyMessage, startSurveyReminders } from "./survey.ts";
+import { FEEDBACK_MODAL_ID, handleFeedbackSubmit } from "./feedback.ts";
 
 const client = new Client({
 	intents: [
@@ -52,6 +53,33 @@ client.on(Events.InteractionCreate, async (interaction) => {
 				}
 			} catch (replyError) {
 				console.error("Failed to send survey button error reply:", replyError);
+			}
+		}
+		return;
+	}
+
+	if (interaction.isModalSubmit()) {
+		if (interaction.customId !== FEEDBACK_MODAL_ID) return;
+		try {
+			await handleFeedbackSubmit(interaction);
+		} catch (error) {
+			console.error("Feedback modal handler failed:", error);
+			try {
+				if (interaction.replied) {
+					await interaction.followUp({
+						content: "Something went wrong.",
+						flags: MessageFlags.Ephemeral,
+					});
+				} else if (interaction.deferred) {
+					await interaction.editReply("Something went wrong.");
+				} else {
+					await interaction.reply({
+						content: "Something went wrong.",
+						flags: MessageFlags.Ephemeral,
+					});
+				}
+			} catch (replyError) {
+				console.error("Failed to send feedback modal error reply:", replyError);
 			}
 		}
 		return;

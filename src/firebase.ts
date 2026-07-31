@@ -213,3 +213,46 @@ export async function listUsersAwaitingReminder(invitedBefore: Date): Promise<st
 	}
 	return userIds;
 }
+
+const BOT_STATE_COLLECTION = "botState";
+const FEATURES_MESSAGE_DOC_ID = "featuresMessage";
+
+export interface FeaturesMessageState {
+	channelId: string;
+	messageId: string;
+}
+
+/** The channel/message Observer is currently keeping the feature overview in, if any. */
+export async function getFeaturesMessageState(): Promise<FeaturesMessageState | undefined> {
+	const { base, token } = await firestore();
+	const response = await fetch(`${base}/${BOT_STATE_COLLECTION}/${FEATURES_MESSAGE_DOC_ID}`, {
+		headers: { Authorization: `Bearer ${token}` },
+	});
+
+	if (response.status === 404) return undefined;
+	if (!response.ok) {
+		throw new Error(`Firestore read failed with ${response.status}: ${await response.text()}`);
+	}
+
+	const document = await response.json() as FirestoreDocument;
+	const channelId = document.fields?.channelId?.stringValue;
+	const messageId = document.fields?.messageId?.stringValue;
+	if (!channelId || !messageId) return undefined;
+	return { channelId, messageId };
+}
+
+/** Remember which message holds the feature overview, so future runs edit it in place. */
+export async function saveFeaturesMessageState(
+	channelId: string,
+	messageId: string,
+): Promise<void> {
+	const { base, token } = await firestore();
+	const written = await fsUpdate(`${base}/${BOT_STATE_COLLECTION}/${FEATURES_MESSAGE_DOC_ID}`, {
+		channelId: { stringValue: channelId },
+		messageId: { stringValue: messageId },
+		updatedAt: { timestampValue: new Date().toISOString() },
+	}, token);
+	if (!written) {
+		throw new Error("Failed to write features message state");
+	}
+}
