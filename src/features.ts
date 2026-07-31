@@ -8,16 +8,16 @@ Observer is the Discord bot for the MCTraveler discord server. Here's everything
 **Two-way live chat bridge**
 Messages sent in the #broadcast channel are relayed into the game, and player chat is mirrored back here.
 
-**Server status — \`/status\`**
+**Server status -> \`/status\`**
 See who's online, a color-coded performance indicator.
 
-**Feedback — \`/feedback\`**
+**Feedback -> \`/feedback\`**
 Report a bug, request a feature, or share other feedback. Fill out a short form and it's filed straight to the developers, no need to leave Discord.
 
-**Surveys — \`/survey\`** *(admin only)*
+**Surveys -> \`/survey\`** *(admin only)*
 Admins can send a quick survey to players to gather feedback about the server.
 
-**This message — \`/features\`** *(admin only)*
+**This message -> \`/features\`** *(admin only)*
 Admins can post or refresh this overview in any channel whenever the bot gains new capabilities.`;
 
 export type FeaturesPostResult = "posted" | "updated";
