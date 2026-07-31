@@ -19,11 +19,7 @@ export const status: Command = {
 			return;
 		}
 
-		const embed = buildStatusEmbed(
-			serverStatus,
-			interaction.client.ws.ping,
-			interaction.user.displayName,
-		);
+		const embed = buildStatusEmbed(serverStatus, interaction.user.displayName);
 		await interaction.editReply({ embeds: [embed] });
 	},
 };

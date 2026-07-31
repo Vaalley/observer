@@ -1,29 +1,24 @@
 import { type Client, DiscordAPIError, RESTJSONErrorCodes } from "discord.js";
 import { getFeaturesMessageState, saveFeaturesMessageState } from "./firebase.ts";
 
-export const FEATURES_MESSAGE_CONTENT = `# 🧭 What Observer Can Do
+export const FEATURES_MESSAGE_CONTENT = `# What Observer Can Do
 
-Observer is the Discord bot for the MCTraveler Minecraft server. Here's everything it currently helps with:
+Observer is the Discord bot for the MCTraveler discord server. Here's everything it currently offers:
 
-**🔄 Live chat bridge**
-Messages sent in the designated chat channel are relayed into the game, and player chat is mirrored back here — one shared conversation between Discord and Minecraft.
+**Two-way live chat bridge**
+Messages sent in the #broadcast channel are relayed into the game, and player chat is mirrored back here.
 
-**📊 Server status — \`/status\`**
-See who's online, a color-coded performance indicator, and Discord's live latency — all at a glance.
+**Server status — \`/status\`**
+See who's online, a color-coded performance indicator.
 
-**💬 Feedback — \`/feedback\`**
-Report a bug, request a feature, or share other feedback. Fill out a short form and it's filed straight to the developers — no need to leave Discord.
+**Feedback — \`/feedback\`**
+Report a bug, request a feature, or share other feedback. Fill out a short form and it's filed straight to the developers, no need to leave Discord.
 
-**📝 Surveys — \`/survey\`** *(admin only)*
+**Surveys — \`/survey\`** *(admin only)*
 Admins can send a quick survey to players to gather feedback about the server.
 
-**📣 This message — \`/features\`** *(admin only)*
-Admins can post or refresh this overview in any channel whenever the bot gains new capabilities.
-
-**🏓 Health check — \`/ping\`**
-Confirms Observer is online and responsive.
-
-_This message is kept up to date in place — no need to look for a newer one._`;
+**This message — \`/features\`** *(admin only)*
+Admins can post or refresh this overview in any channel whenever the bot gains new capabilities.`;
 
 export type FeaturesPostResult = "posted" | "updated";
 

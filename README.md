@@ -76,7 +76,7 @@ export const hello: Command = {
 import { hello } from "./hello.ts";
 
 export const commands: Record<string, Command> = {
-	ping,
+	status,
 	hello,
 };
 ```

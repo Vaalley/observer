@@ -59,7 +59,6 @@ export function buildUnreachableStatusEmbed(): EmbedBuilder {
 /** The embed shown for a successful `/status` fetch. */
 export function buildStatusEmbed(
 	serverStatus: StatusResponse,
-	gatewayPingMs: number,
 	requestedBy: string,
 ): EmbedBuilder {
 	const health = tpsHealth(serverStatus.tps);
@@ -74,12 +73,6 @@ export function buildStatusEmbed(
 			{
 				name: "Server Performance",
 				value: `${health.emoji} ${serverStatus.tps.toFixed(1)}/20 TPS — ${health.label}`,
-				inline: true,
-			},
-			{
-				name: "Discord Latency",
-				value: gatewayPingMs < 0 ? "n/a" : `${gatewayPingMs}ms`,
-				inline: true,
 			},
 		)
 		.setTimestamp()
