@@ -54,10 +54,7 @@ function sanitizeTitleFragment(text: string, maxLength: number): string {
 }
 
 export async function createFeedbackIssue(report: FeedbackReport): Promise<CreatedIssue> {
-	const title = sanitizeTitleFragment(
-		`${TYPE_TITLES[report.type]} from ${report.reporterTag}`,
-		200,
-	);
+	const title = sanitizeTitleFragment(report.details, 200);
 	const body = `**Type:** ${
 		TYPE_TITLES[report.type]
 	}\n**Reported by:** \`${report.reporterTag}\` via Observer\n\n${fence(report.details)}`;

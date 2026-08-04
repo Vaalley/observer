@@ -1,4 +1,4 @@
-import { Colors, EmbedBuilder } from "discord.js";
+import { Colors, EmbedBuilder, escapeMarkdown } from "discord.js";
 import type { StatusResponse } from "./conduit/client.ts";
 
 /** Minecraft's tick rate targets 20 TPS; below that the server is behind on game logic. */
@@ -26,7 +26,9 @@ export function tpsHealth(tps: number): TpsHealth {
  */
 export function formatPlayerList(players: readonly string[]): string {
 	if (players.length === 0) return "No players online";
-	const sorted = [...players].sort((a, b) => a.localeCompare(b));
+	const sorted = [...players].sort((a, b) => a.localeCompare(b)).map((name) =>
+		escapeMarkdown(name)
+	);
 
 	const full = sorted.join(", ");
 	if (full.length <= MAX_FIELD_CHARS) return full;
