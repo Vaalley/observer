@@ -6,7 +6,8 @@
 		"start": "deno run --env-file --allow-net --allow-env --allow-read --allow-sys src/main.ts",
 		"dev": "deno run --watch --env-file --allow-net --allow-env --allow-read --allow-sys src/main.ts",
 		"deploy": "deno run --env-file --allow-net --allow-env --allow-read --allow-sys scripts/deploy-commands.ts",
-		"check": "deno check src scripts"
+		"check": "deno check src scripts",
+		"test": "deno test src"
 	},
 	"imports": {
 		"@sarfarajey/gcp-edge-auth": "npm:@sarfarajey/gcp-edge-auth@^1.0.0",

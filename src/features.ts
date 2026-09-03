@@ -13,7 +13,7 @@ Messages sent in the #broadcast channel are relayed into the game, and player ch
 See who's online, a color-coded performance indicator.
 
 **Live status message -> \`/livestatus\`** *(admin only)*
-Admins can pin an auto-updating status embed in a channel; it refreshes every minute with who's online and server performance.
+Admins can pin an auto-updating status embed in a channel; it refreshes every minute with who's online, session lengths, uptime, world time/weather, server performance, and today's peak.
 
 **Feedback -> \`/feedback\`**
 Report a bug, request a feature, or share other feedback. Fill out a short form and it's filed straight to the developers, no need to leave Discord.

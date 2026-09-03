@@ -76,7 +76,11 @@ async function writeSurveyFields(
 
 interface FirestoreDocument {
 	name?: string;
-	fields?: Record<string, { stringValue?: string; timestampValue?: string }>;
+	fields?: Record<string, {
+		stringValue?: string;
+		timestampValue?: string;
+		integerValue?: string;
+	}>;
 }
 
 /**
@@ -259,5 +263,37 @@ export async function saveTrackedMessageState(
 	}, token);
 	if (!written) {
 		throw new Error(`Failed to write tracked message state for ${docId}`);
+	}
+}
+
+/** The peak online count recorded for the current UTC date, if any. */
+export async function getLiveStatusPeak(): Promise<{ date: string; count: number } | undefined> {
+	const { base, token } = await firestore();
+	const response = await fetch(`${base}/${BOT_STATE_COLLECTION}/liveStatusPeak`, {
+		headers: { Authorization: `Bearer ${token}` },
+	});
+
+	if (response.status === 404) return undefined;
+	if (!response.ok) {
+		throw new Error(`Firestore read failed with ${response.status}: ${await response.text()}`);
+	}
+
+	const document = await response.json() as FirestoreDocument;
+	const date = document.fields?.date?.stringValue;
+	const rawCount = document.fields?.count?.integerValue;
+	const count = rawCount === undefined ? NaN : Number(rawCount);
+	if (!date || !Number.isFinite(count)) return undefined;
+	return { date, count };
+}
+
+/** Save the peak online count for a UTC date. */
+export async function saveLiveStatusPeak(date: string, count: number): Promise<void> {
+	const { base, token } = await firestore();
+	const written = await fsUpdate(`${base}/${BOT_STATE_COLLECTION}/liveStatusPeak`, {
+		date: { stringValue: date },
+		count: { integerValue: String(count) },
+	}, token);
+	if (!written) {
+		throw new Error("Failed to write live status peak");
 	}
 }
