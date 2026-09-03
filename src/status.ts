@@ -47,7 +47,7 @@ export function worldTimeLabel(dayTime: number): string {
 export function weatherLabel(raining: boolean, thundering: boolean): string {
 	if (thundering) return "⛈️ Thunderstorm";
 	if (raining) return "🌧️ Rain";
-	return "☀️ Clear";
+	return "🌤️ Clear";
 }
 
 /**
