@@ -60,7 +60,7 @@ export async function handleChatBridgeMessage(message: Message): Promise<boolean
 	const content = sanitize(message.content).trim();
 	if (content.length === 0) return false;
 
-	const sender = sanitize(message.author.displayName ?? message.author.username);
+	const sender = sanitize(message.member?.displayName ?? message.author.displayName);
 	try {
 		await sendBroadcast(sender, content);
 	} catch (error) {
