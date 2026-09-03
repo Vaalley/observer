@@ -215,17 +215,21 @@ export async function listUsersAwaitingReminder(invitedBefore: Date): Promise<st
 }
 
 const BOT_STATE_COLLECTION = "botState";
-const FEATURES_MESSAGE_DOC_ID = "featuresMessage";
 
-export interface FeaturesMessageState {
+export interface TrackedMessageState {
 	channelId: string;
 	messageId: string;
 }
 
-/** The channel/message Observer is currently keeping the feature overview in, if any. */
-export async function getFeaturesMessageState(): Promise<FeaturesMessageState | undefined> {
+export const FEATURES_MESSAGE_DOC_ID = "featuresMessage";
+export const LIVE_STATUS_MESSAGE_DOC_ID = "liveStatusMessage";
+
+/** The channel/message Observer is currently tracking, if any. */
+export async function getTrackedMessageState(
+	docId: string,
+): Promise<TrackedMessageState | undefined> {
 	const { base, token } = await firestore();
-	const response = await fetch(`${base}/${BOT_STATE_COLLECTION}/${FEATURES_MESSAGE_DOC_ID}`, {
+	const response = await fetch(`${base}/${BOT_STATE_COLLECTION}/${docId}`, {
 		headers: { Authorization: `Bearer ${token}` },
 	});
 
@@ -241,18 +245,19 @@ export async function getFeaturesMessageState(): Promise<FeaturesMessageState | 
 	return { channelId, messageId };
 }
 
-/** Remember which message holds the feature overview, so future runs edit it in place. */
-export async function saveFeaturesMessageState(
+/** Remember which message is being tracked, so future runs edit it in place. */
+export async function saveTrackedMessageState(
+	docId: string,
 	channelId: string,
 	messageId: string,
 ): Promise<void> {
 	const { base, token } = await firestore();
-	const written = await fsUpdate(`${base}/${BOT_STATE_COLLECTION}/${FEATURES_MESSAGE_DOC_ID}`, {
+	const written = await fsUpdate(`${base}/${BOT_STATE_COLLECTION}/${docId}`, {
 		channelId: { stringValue: channelId },
 		messageId: { stringValue: messageId },
 		updatedAt: { timestampValue: new Date().toISOString() },
 	}, token);
 	if (!written) {
-		throw new Error("Failed to write features message state");
+		throw new Error(`Failed to write tracked message state for ${docId}`);
 	}
 }

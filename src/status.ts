@@ -80,3 +80,39 @@ export function buildStatusEmbed(
 		.setTimestamp()
 		.setFooter({ text: `Requested by ${requestedBy}` });
 }
+
+/** The embed the live-status message shows; `serverStatus` undefined means conduit was unreachable. */
+export function buildLiveStatusEmbed(serverStatus: StatusResponse | undefined): EmbedBuilder {
+	const embed = new EmbedBuilder()
+		.setTitle("MCTraveler Live Status")
+		.setTimestamp()
+		.setFooter({ text: "Updates every minute" });
+
+	if (!serverStatus) {
+		return embed
+			.setColor(Colors.Red)
+			.setDescription("🔴 Couldn't reach the Minecraft server. It may be restarting or offline.");
+	}
+
+	const health = tpsHealth(serverStatus.tps);
+	const performance = {
+		name: "Server Performance",
+		value: `${health.emoji} ${serverStatus.tps.toFixed(1)}/20 TPS — ${health.label}`,
+	};
+
+	if (serverStatus.online === 0) {
+		return embed
+			.setColor(Colors.Yellow)
+			.setDescription("🟡 Nobody online right now")
+			.addFields(performance);
+	}
+
+	const playerWord = serverStatus.online === 1 ? "player" : "players";
+	return embed
+		.setColor(health.color)
+		.setDescription(`🟢 ${serverStatus.online} ${playerWord} online`)
+		.addFields(
+			{ name: "Players Online", value: formatPlayerList(serverStatus.players) },
+			performance,
+		);
+}

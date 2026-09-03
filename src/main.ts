@@ -2,6 +2,7 @@ import { Client, Events, GatewayIntentBits, MessageFlags, Partials } from "disco
 import { config } from "./config.ts";
 import { commands } from "./commands/mod.ts";
 import { handleChatBridgeMessage, startChatBridge } from "./chat-bridge.ts";
+import { startLiveStatus } from "./live-status.ts";
 import { handleSurveyButton, handleSurveyMessage, startSurveyReminders } from "./survey.ts";
 import { FEEDBACK_MODAL_ID, handleFeedbackSubmit } from "./feedback.ts";
 
@@ -19,6 +20,7 @@ client.once(Events.ClientReady, (ready) => {
 	console.info(`Logged in as ${ready.user.tag}`);
 	startChatBridge(client);
 	startSurveyReminders(client);
+	startLiveStatus(client);
 });
 
 client.on(Events.MessageCreate, async (message) => {

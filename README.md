@@ -22,6 +22,9 @@ Fill in `DISCORD_TOKEN`, `DISCORD_APP_ID` and `DISCORD_GUILD_ID`. Only the token
 If you want the two-way game chat bridge, also set `DISCORD_CHAT_CHANNEL_ID` to a Discord text
 channel ID.
 
+The `/livestatus` command needs Firebase configured, just like `/features`. Run `deno task deploy`
+after pulling this change because it adds a command.
+
 Then invite the bot to the server, replacing the id with your `DISCORD_APP_ID`:
 
 ```
