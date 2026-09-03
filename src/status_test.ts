@@ -33,7 +33,7 @@ Deno.test("worldTimeLabel uses the expected day phases", () => {
 });
 
 Deno.test("weatherLabel prioritizes thunderstorms", () => {
-	assertEqual(weatherLabel(false, false), "☀️ Clear");
+	assertEqual(weatherLabel(false, false), "🌤️ Clear");
 	assertEqual(weatherLabel(true, false), "🌧️ Rain");
 	assertEqual(weatherLabel(false, true), "⛈️ Thunderstorm");
 	assertEqual(weatherLabel(true, true), "⛈️ Thunderstorm");
