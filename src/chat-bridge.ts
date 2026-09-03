@@ -57,7 +57,7 @@ export async function handleChatBridgeMessage(message: Message): Promise<boolean
 	if (message.author.bot) return false;
 	if (message.author.id === message.client.user?.id) return false;
 
-	const content = sanitize(message.content).trim();
+	const content = sanitize(message.cleanContent).trim();
 	if (content.length === 0) return false;
 
 	const sender = sanitize(message.member?.displayName ?? message.author.displayName);
