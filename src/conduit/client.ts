@@ -1,9 +1,21 @@
 import { config } from "../config.ts";
 
+export interface PlayerSession {
+	name: string;
+	joinedAt: number | null;
+}
+
 export interface StatusResponse {
 	online: number;
 	players: string[];
 	tps: number;
+	sessions?: PlayerSession[];
+	startedAt?: number;
+	minecraftVersion?: string;
+	modVersion?: string;
+	dayTime?: number;
+	raining?: boolean;
+	thundering?: boolean;
 }
 
 export interface ChatMessage {
