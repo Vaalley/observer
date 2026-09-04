@@ -15,6 +15,12 @@ See who's online, a color-coded performance indicator.
 **Live status message -> \`/livestatus\`** *(admin only)*
 Admins can pin an auto-updating status embed in a channel; it refreshes every minute with who's online, session lengths, uptime, world time/weather, server performance, and today's peak.
 
+**Passport -> \`/passport\`**
+See a player's travel record: biomes, dimensions, regions and embassies visited, distance walked/ridden/flown/swum.
+
+**Leaderboard -> \`/leaderboard\`**
+See the top travelers by distance, biomes or embassies.
+
 **Feedback -> \`/feedback\`**
 Report a bug, request a feature, or share other feedback. Fill out a short form and it's filed straight to the developers, no need to leave Discord.
 

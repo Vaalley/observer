@@ -24,8 +24,52 @@ export interface ChatMessage {
 	content: string;
 }
 
+export interface PassportRegion {
+	id: string;
+	title: string;
+	embassy: boolean;
+	owner: string | null;
+	at: number;
+}
+
+export interface PassportDistance {
+	walk: number;
+	ride: number;
+	fly: number;
+	swim: number;
+	total: number;
+}
+
+export interface PassportResponse {
+	name: string;
+	firstJoin: number;
+	biomes: string[];
+	biomeCount: number;
+	dimensions: string[];
+	regions: PassportRegion[];
+	distance: PassportDistance;
+	deaths: number;
+	rank: {
+		distance: number;
+		biomes: number;
+		embassies: number;
+	};
+}
+
+export type LeaderboardMetric = "distance" | "biomes" | "embassies";
+
+export interface TopEntry {
+	name: string;
+	value: number;
+}
+
 interface ChatResponse {
 	messages: ChatMessage[];
+}
+
+interface TopResponse {
+	by: LeaderboardMetric;
+	entries: TopEntry[];
 }
 
 interface BroadcastRequest {
@@ -76,4 +120,34 @@ export async function fetchChat(since: number): Promise<ChatMessage[]> {
 	}
 	const body = await response.json() as ChatResponse;
 	return body.messages;
+}
+
+export async function fetchPassport(name: string): Promise<PassportResponse | null> {
+	const response = await fetch(
+		`${config.conduitUrl}/passport?name=${encodeURIComponent(name)}`,
+		{
+			headers: { Authorization: `Bearer ${ensureToken()}` },
+			signal: AbortSignal.timeout(CONDUIT_TIMEOUT_MS),
+		},
+	);
+	if (response.status === 404) return null;
+	if (!response.ok) {
+		throw new Error(`Conduit returned ${response.status}`);
+	}
+	return await response.json() as PassportResponse;
+}
+
+export async function fetchTop(
+	by: LeaderboardMetric,
+	limit = 10,
+): Promise<TopEntry[]> {
+	const response = await fetch(`${config.conduitUrl}/passports/top?by=${by}&limit=${limit}`, {
+		headers: { Authorization: `Bearer ${ensureToken()}` },
+		signal: AbortSignal.timeout(CONDUIT_TIMEOUT_MS),
+	});
+	if (!response.ok) {
+		throw new Error(`Conduit returned ${response.status}`);
+	}
+	const body = await response.json() as TopResponse;
+	return body.entries;
 }
