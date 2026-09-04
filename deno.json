@@ -7,11 +7,12 @@
 		"dev": "deno run --watch --env-file --allow-net --allow-env --allow-read --allow-sys src/main.ts",
 		"deploy": "deno run --env-file --allow-net --allow-env --allow-read --allow-sys scripts/deploy-commands.ts",
 		"check": "deno check src scripts",
-		"test": "deno test --allow-env src"
+		"test": "deno test --allow-env --allow-read src"
 	},
 	"imports": {
 		"@sarfarajey/gcp-edge-auth": "npm:@sarfarajey/gcp-edge-auth@^1.0.0",
 		"@sarfarajey/gcp-edge-auth/firestore": "npm:@sarfarajey/gcp-edge-auth@^1.0.0/firestore",
+		"@resvg/resvg-wasm": "npm:@resvg/resvg-wasm@2.6.2",
 		"discord.js": "npm:discord.js@^14.27.0"
 	},
 	"exclude": [".claude", "skills-lock.json"],

@@ -1,8 +1,11 @@
+import { AttachmentBuilder } from "discord.js";
 import type { Client } from "discord.js";
+import { Buffer } from "node:buffer";
 import { config } from "../config.ts";
 import { fetchEvents, type PassportEvent, type PostcardEvent } from "../conduit/client.ts";
 import { getPostcardsChannelId, isFirebaseConfigured } from "../firebase.ts";
 import { buildPostcardEmbed, formatPostcardLine, formatStampLine } from "../passport.ts";
+import { renderPostcardPng } from "./render.ts";
 
 const POLL_INTERVAL_MS = 10_000;
 const CHANNEL_CACHE_MS = 60_000;
@@ -25,7 +28,14 @@ async function postPostcard(
 	if (!channel?.isSendable()) {
 		throw new Error(`Postcards channel ${channelId} is not sendable`);
 	}
-	const message = await channel.send({ embeds: [buildPostcardEmbed(event)] });
+	const embed = buildPostcardEmbed(event);
+	const png = await renderPostcardPng(event);
+	const message = png
+		? await channel.send({
+			embeds: [embed.setImage("attachment://postcard.png")],
+			files: [new AttachmentBuilder(Buffer.from(png), { name: "postcard.png" })],
+		})
+		: await channel.send({ embeds: [embed] });
 	try {
 		await message.react("📮");
 		await message.react("❤️");

@@ -1,6 +1,7 @@
 {
   "version": "5",
   "specifiers": {
+    "npm:@resvg/resvg-wasm@2.6.2": "2.6.2",
     "npm:@sarfarajey/gcp-edge-auth@1": "1.0.0",
     "npm:discord.js@14.27.0": "14.27.0",
     "npm:discord.js@^14.27.0": "14.27.0"
@@ -63,6 +64,9 @@
         "tslib",
         "ws"
       ]
+    },
+    "@resvg/resvg-wasm@2.6.2": {
+      "integrity": "sha512-FqALmHI8D4o6lk/LRWDnhw95z5eO+eAa6ORjVg09YRR7BkcM6oPHU9uyC0gtQG5vpFLvgpeU4+zEAz2H8APHNw=="
     },
     "@sapphire/async-queue@1.5.5": {
       "integrity": "sha512-cvGzxbba6sav2zZkH8GPf2oGk9yYoD5qrNWdu9fRehifgnFZJMV+nuy2nON2roRO4yQQ+v7MK/Pktl/HgfsUXg=="
@@ -146,6 +150,7 @@
   },
   "workspace": {
     "dependencies": [
+      "npm:@resvg/resvg-wasm@2.6.2",
       "npm:@sarfarajey/gcp-edge-auth@1",
       "npm:discord.js@^14.27.0"
     ]

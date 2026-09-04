@@ -28,7 +28,8 @@ pulling this change because it adds a command.
 
 `/passport <player>` and `/leaderboard [by]` read travel passports from Conduit (`CONDUIT_URL` and
 `CONDUIT_TOKEN`); they also need `deno task deploy` once after pulling. `/postcards setup` needs
-Firebase configured like `/livestatus` and also needs `deno task deploy`.
+Firebase configured like `/livestatus` and also needs `deno task deploy`. Postcards are rendered as
+images using the bundled fonts in `assets/fonts/`.
 
 Then invite the bot to the server, replacing the id with your `DISCORD_APP_ID`:
 
