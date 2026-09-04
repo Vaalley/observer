@@ -1,10 +1,15 @@
 import { Colors } from "discord.js";
 import {
+	biomeColor,
 	buildLeaderboardEmbed,
 	buildPassportEmbed,
+	buildPostcardEmbed,
 	formatDistance,
 	formatDistanceBuckets,
+	formatPostcardLine,
+	formatStampLine,
 	passportColor,
+	prettyBiome,
 } from "./passport.ts";
 
 function assertEqual<T>(actual: T, expected: T): void {
@@ -22,6 +27,7 @@ const fixture = {
 	firstJoin: Date.UTC(2025, 0, 2),
 	biomes: ["minecraft:plains"],
 	biomeCount: 1,
+	biomeTotal: 0,
 	dimensions: ["minecraft:overworld", "minecraft:the_nether"],
 	regions: [
 		{ id: "one", title: "Home", embassy: true, owner: "Owner", at: 1 },
@@ -29,6 +35,9 @@ const fixture = {
 	],
 	distance: { walk: 12_400, ride: 3_100, fly: 800, swim: 120, total: 16_420 },
 	deaths: 2,
+	crystalTrips: 4,
+	postcards: 2,
+	stamps: [],
 	rank: { distance: 3, biomes: 4, embassies: 2 },
 };
 
@@ -56,6 +65,15 @@ Deno.test("passportColor prioritizes the rarest dimension", () => {
 	assertEqual(passportColor(["minecraft:the_nether", "minecraft:the_end"]), Colors.Purple);
 });
 
+Deno.test("biomeColor and prettyBiome classify postcard locations", () => {
+	assertEqual(biomeColor("minecraft:plains", "mctraveler:embassies"), Colors.Gold);
+	assertEqual(biomeColor("minecraft:plains", "minecraft:the_nether"), Colors.DarkRed);
+	assertEqual(biomeColor("minecraft:plains", "minecraft:the_end"), Colors.Purple);
+	assertEqual(biomeColor("minecraft:deep_ocean", "minecraft:overworld"), Colors.Blue);
+	assertEqual(biomeColor("minecraft:dark_forest", "minecraft:overworld"), Colors.Green);
+	assertEqual(prettyBiome("minecraft:dark_forest"), "Dark Forest");
+});
+
 Deno.test("buildPassportEmbed summarizes regions and rank", () => {
 	const embed = buildPassportEmbed(fixture, Date.UTC(2025, 0, 3)).toJSON();
 	assertEqual(embed.title, "🛂 Passport — Traveler\\*");
@@ -74,6 +92,91 @@ Deno.test("buildPassportEmbed summarizes regions and rank", () => {
 	assertEqual(embed.timestamp, "2025-01-03T00:00:00.000Z");
 });
 
+Deno.test("buildPassportEmbed shows biome totals, counters, and stamps", () => {
+	const embed = buildPassportEmbed({
+		...fixture,
+		biomeCount: 12,
+		biomeTotal: 64,
+		stamps: [
+			{ id: "one", title: "First", description: "First description", icon: "👣", at: 1 },
+			{ id: "two", title: "Second", description: "Second description", icon: "🥾", at: 3 },
+			{ id: "three", title: "Third", description: "Third description", icon: "🧭", at: 2 },
+		],
+	}).toJSON();
+	const fields = embed.fields ?? [];
+	assert(
+		fields.some((field) => field.name === "Biomes" && field.value === "12 / 64"),
+		"biome total",
+	);
+	assert(
+		fields.some((field) => field.name === "Crystal trips" && field.value === "4"),
+		"crystal trips",
+	);
+	assert(
+		fields.some((field) => field.name === "Postcards sent" && field.value === "2"),
+		"postcards",
+	);
+	assert(
+		fields.some((field) =>
+			field.name === "Stamps" &&
+			field.value.includes("👣 🥾 🧭 · +11 locked") &&
+			field.value.indexOf("Second") < field.value.indexOf("Third")
+		),
+		"stamp field",
+	);
+	assert(
+		(buildPassportEmbed({ ...fixture, stamps: [] }).toJSON().fields ?? [])
+			.some((field) => field.name === "Stamps" && field.value === "No stamps yet"),
+		"empty stamp field",
+	);
+	assert(
+		(buildPassportEmbed({ ...fixture, biomeCount: 12, biomeTotal: 0 }).toJSON().fields ?? [])
+			.some((field) => field.name === "Biomes" && field.value === "12"),
+		"biome count without total",
+	);
+});
+
+Deno.test("buildPostcardEmbed and event lines format postcard events", () => {
+	const event = {
+		type: "postcard" as const,
+		at: Date.UTC(2025, 0, 3),
+		player: "Traveler",
+		dimension: "mctraveler:embassies",
+		biome: "minecraft:dark_forest",
+		region: { id: "embassy", title: "The *Embassy*", embassy: true, owner: null },
+		x: 120,
+		y: 70,
+		z: -40,
+		dayTime: 6_000,
+		raining: true,
+		thundering: false,
+		caption: "*x*",
+	};
+	const embed = buildPostcardEmbed(event).toJSON();
+	assertEqual(embed.author?.name, "Greetings from The *Embassy*");
+	assertEqual(embed.color, Colors.Gold);
+	assert(embed.description?.includes('> "\\*x\\*"') === true, "caption should escape markdown");
+	assert(embed.description?.includes("~120, -40") === true, "coordinates should be shown");
+	assert(
+		embed.description?.includes("🏛️ Embassy of unknown") === true,
+		"embassy should be shown",
+	);
+	assertEqual(embed.timestamp, "2025-01-03T00:00:00.000Z");
+	assertEqual(
+		formatStampLine({
+			type: "stamp",
+			at: 1,
+			player: "Player*",
+			stamp: { id: "one", title: "First*", description: "Walked", icon: "👣" },
+		}),
+		"🏅 **Player\\*** earned **👣 First\\*** — Walked",
+	);
+	assertEqual(
+		formatPostcardLine(event),
+		"📮 **Traveler** sent a postcard from The *Embassy*",
+	);
+});
+
 Deno.test("buildLeaderboardEmbed uses medals, numbering, and empty state", () => {
 	const embed = buildLeaderboardEmbed("distance", [
 		{ name: "One*", value: 12_400 },
@@ -88,5 +191,9 @@ Deno.test("buildLeaderboardEmbed uses medals, numbering, and empty state", () =>
 	assertEqual(
 		buildLeaderboardEmbed("biomes", []).toJSON().description,
 		"No travelers yet.",
+	);
+	assertEqual(
+		buildLeaderboardEmbed("stamps", [{ name: "Stamped", value: 3 }]).toJSON().description,
+		"🥇 Stamped — 3",
 	);
 });

@@ -45,10 +45,14 @@ export interface PassportResponse {
 	firstJoin: number;
 	biomes: string[];
 	biomeCount: number;
+	biomeTotal: number;
 	dimensions: string[];
 	regions: PassportRegion[];
 	distance: PassportDistance;
 	deaths: number;
+	crystalTrips: number;
+	postcards: number;
+	stamps: PassportStamp[];
 	rank: {
 		distance: number;
 		biomes: number;
@@ -56,7 +60,47 @@ export interface PassportResponse {
 	};
 }
 
-export type LeaderboardMetric = "distance" | "biomes" | "embassies";
+export interface PassportStamp {
+	id: string;
+	title: string;
+	description: string;
+	icon: string;
+	at: number;
+}
+
+export type LeaderboardMetric = "distance" | "biomes" | "embassies" | "stamps";
+
+export interface RegionRef {
+	id: string;
+	title: string;
+	embassy: boolean;
+	owner: string | null;
+}
+
+export interface PostcardEvent {
+	type: "postcard";
+	at: number;
+	player: string;
+	dimension: string;
+	biome: string;
+	region?: RegionRef | null;
+	x: number;
+	y: number;
+	z: number;
+	dayTime: number;
+	raining: boolean;
+	thundering: boolean;
+	caption?: string | null;
+}
+
+export interface StampEvent {
+	type: "stamp";
+	at: number;
+	player: string;
+	stamp: Omit<PassportStamp, "at">;
+}
+
+export type PassportEvent = PostcardEvent | StampEvent;
 
 export interface TopEntry {
 	name: string;
@@ -150,4 +194,17 @@ export async function fetchTop(
 	}
 	const body = await response.json() as TopResponse;
 	return body.entries;
+}
+
+export async function fetchEvents(
+	since: number,
+): Promise<{ events: PassportEvent[]; now: number }> {
+	const response = await fetch(`${config.conduitUrl}/events?since=${since}`, {
+		headers: { Authorization: `Bearer ${ensureToken()}` },
+		signal: AbortSignal.timeout(CONDUIT_TIMEOUT_MS),
+	});
+	if (!response.ok) {
+		throw new Error(`Conduit returned ${response.status}`);
+	}
+	return await response.json() as { events: PassportEvent[]; now: number };
 }

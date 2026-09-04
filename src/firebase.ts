@@ -227,6 +227,7 @@ export interface TrackedMessageState {
 
 export const FEATURES_MESSAGE_DOC_ID = "featuresMessage";
 export const LIVE_STATUS_MESSAGE_DOC_ID = "liveStatusMessage";
+export const POSTCARDS_CHANNEL_DOC_ID = "postcardsChannel";
 
 /** The channel/message Observer is currently tracking, if any. */
 export async function getTrackedMessageState(
@@ -295,5 +296,35 @@ export async function saveLiveStatusPeak(date: string, count: number): Promise<v
 	}, token);
 	if (!written) {
 		throw new Error("Failed to write live status peak");
+	}
+}
+
+export async function getPostcardsChannelId(): Promise<string | undefined> {
+	const { base, token } = await firestore();
+	const response = await fetch(`${base}/${BOT_STATE_COLLECTION}/${POSTCARDS_CHANNEL_DOC_ID}`, {
+		headers: { Authorization: `Bearer ${token}` },
+	});
+
+	if (response.status === 404) return undefined;
+	if (!response.ok) {
+		throw new Error(`Firestore read failed with ${response.status}: ${await response.text()}`);
+	}
+
+	const document = await response.json() as FirestoreDocument;
+	return document.fields?.channelId?.stringValue;
+}
+
+export async function savePostcardsChannelId(channelId: string): Promise<void> {
+	const { base, token } = await firestore();
+	const written = await fsUpdate(
+		`${base}/${BOT_STATE_COLLECTION}/${POSTCARDS_CHANNEL_DOC_ID}`,
+		{
+			channelId: { stringValue: channelId },
+			updatedAt: { timestampValue: new Date().toISOString() },
+		},
+		token,
+	);
+	if (!written) {
+		throw new Error("Failed to write postcards channel");
 	}
 }

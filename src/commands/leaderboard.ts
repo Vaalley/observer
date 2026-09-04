@@ -16,6 +16,7 @@ export const leaderboard: Command = {
 					{ name: "Distance", value: "distance" },
 					{ name: "Biomes", value: "biomes" },
 					{ name: "Embassies", value: "embassies" },
+					{ name: "Stamps", value: "stamps" },
 				)
 		),
 	async execute(interaction) {
