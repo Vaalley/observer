@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from "discord.js";
+import { escapeMarkdown, SlashCommandBuilder } from "discord.js";
 import type { Command } from "../command.ts";
 import { fetchPassport } from "../conduit/client.ts";
 import { buildPassportEmbed } from "../passport.ts";
@@ -6,7 +6,7 @@ import { buildPassportEmbed } from "../passport.ts";
 export const passport: Command = {
 	data: new SlashCommandBuilder()
 		.setName("passport")
-		.setDescription("See a player's Conduit travel passport")
+		.setDescription("See a player's travel passport")
 		.addStringOption((option) =>
 			option
 				.setName("player")
@@ -21,7 +21,9 @@ export const passport: Command = {
 			const result = await fetchPassport(name);
 			if (result === null) {
 				await interaction.editReply(
-					`No passport for **${name}** yet — they may not have joined since passports began.`,
+					`No passport for **${
+						escapeMarkdown(name)
+					}** yet — they may not have joined since passports began.`,
 				);
 				return;
 			}

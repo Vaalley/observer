@@ -24,9 +24,10 @@ channel ID.
 
 The `/livestatus` command needs Firebase configured, just like `/features`. Its status embed
 includes uptime, world time/weather, session lengths, and today's peak. Run `deno task deploy` after
-pulling this change because it adds a command. The `/passport` and `/leaderboard` commands also need
-`CONDUIT_URL` and `CONDUIT_TOKEN`; run `deno task deploy` after pulling this change because they add
-commands.
+pulling this change because it adds a command.
+
+`/passport <player>` and `/leaderboard [by]` read travel passports from Conduit (`CONDUIT_URL` and
+`CONDUIT_TOKEN`); they also need `deno task deploy` once after pulling.
 
 Then invite the bot to the server, replacing the id with your `DISCORD_APP_ID`:
 
