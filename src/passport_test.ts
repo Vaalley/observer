@@ -153,12 +153,24 @@ Deno.test("buildPostcardEmbed and event lines format postcard events", () => {
 		caption: "*x*",
 	};
 	const embed = buildPostcardEmbed(event).toJSON();
-	assertEqual(embed.author?.name, "Greetings from The *Embassy*");
+	assertEqual(embed.title, "📮 Greetings from The *Embassy*");
+	assertEqual(embed.author?.name, "🏛️ Embassies");
 	assertEqual(embed.color, Colors.Gold);
-	assert(embed.description?.includes('> "\\*x\\*"') === true, "caption should escape markdown");
-	assert(embed.description?.includes("~120, -40") === true, "coordinates should be shown");
+	assertEqual(embed.description, '> *"\\*x\\*"*');
 	assert(
-		embed.description?.includes("🏛️ Embassy of unknown") === true,
+		(embed.fields ?? []).some((field) =>
+			field.name === "📍 Where" && field.value === "Dark Forest\n~120, -40"
+		),
+		"location field should be shown",
+	);
+	assert(
+		(embed.fields ?? []).some((field) =>
+			field.name === "🕐 When" && field.value === "☀️ Day\n🌧️ Rain"
+		),
+		"time field should be shown",
+	);
+	assert(
+		(embed.fields ?? []).some((field) => field.name === "🏛️ Embassy" && field.value === "unknown"),
 		"embassy should be shown",
 	);
 	assertEqual(embed.timestamp, "2025-01-03T00:00:00.000Z");

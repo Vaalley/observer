@@ -136,24 +136,36 @@ export function buildPassportEmbed(
 
 export function buildPostcardEmbed(
 	event: PostcardEvent,
-	postcardNumber?: number,
 ): EmbedBuilder {
 	const biome = prettyBiome(event.biome);
 	const region = event.region ?? undefined;
-	const lines = [
-		event.caption ? `> "${escapeMarkdown(event.caption)}"` : undefined,
-		`📍 ${dimensionLabel(event.dimension)} · ${biome} · ~${event.x}, ${event.z}`,
-		`🕐 ${worldTimeLabel(event.dayTime)} · ${weatherLabel(event.raining, event.thundering)}`,
-		region?.embassy ? `🏛️ Embassy of ${region.owner ?? "unknown"}` : undefined,
-	].filter((line): line is string => line !== undefined);
-	const footer = `Postcard from ${event.player}${
-		postcardNumber === undefined ? "" : ` · #${postcardNumber}`
-	}`;
 	return new EmbedBuilder()
-		.setAuthor({ name: `Greetings from ${region?.title ?? biome}` })
+		.setTitle(`📮 Greetings from ${region?.title ?? biome}`)
+		.setAuthor({ name: dimensionLabel(event.dimension) })
 		.setColor(biomeColor(event.biome, event.dimension))
-		.setDescription(lines.join("\n"))
-		.setFooter({ text: footer })
+		.setDescription(
+			event.caption ? `> *"${escapeMarkdown(event.caption)}"*` : "> *Wish you were here!*",
+		)
+		.addFields(
+			{
+				name: "📍 Where",
+				value: `${biome}\n~${event.x}, ${event.z}`,
+				inline: true,
+			},
+			{
+				name: "🕐 When",
+				value: `${worldTimeLabel(event.dayTime)}\n${weatherLabel(event.raining, event.thundering)}`,
+				inline: true,
+			},
+			...(region?.embassy
+				? [{
+					name: "🏛️ Embassy",
+					value: region.owner ?? "unknown",
+					inline: true,
+				}]
+				: []),
+		)
+		.setFooter({ text: `Postcard from ${event.player}` })
 		.setTimestamp(event.at);
 }
 
