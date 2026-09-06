@@ -3,6 +3,7 @@ import { config } from "./config.ts";
 import { commands } from "./commands/mod.ts";
 import { handleChatBridgeMessage, startChatBridge } from "./chat-bridge.ts";
 import { startLiveStatus } from "./live-status.ts";
+import { startPassportEvents } from "./passport/events.ts";
 import { handleSurveyButton, handleSurveyMessage, startSurveyReminders } from "./survey.ts";
 import { FEEDBACK_MODAL_ID, handleFeedbackSubmit } from "./feedback.ts";
 
@@ -21,6 +22,7 @@ client.once(Events.ClientReady, (ready) => {
 	startChatBridge(client);
 	startSurveyReminders(client);
 	startLiveStatus(client);
+	startPassportEvents(client);
 });
 
 client.on(Events.MessageCreate, async (message) => {

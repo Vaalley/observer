@@ -15,6 +15,15 @@ See who's online, a color-coded performance indicator.
 **Live status message -> \`/livestatus\`** *(admin only)*
 Admins can pin an auto-updating status embed in a channel; it refreshes every minute with who's online, session lengths, uptime, world time/weather, server performance, and today's peak.
 
+**Passport -> \`/passport\`**
+See a player's travel record: biomes, dimensions, regions and embassies visited, distance walked/ridden/flown/swum, stamps, crystal trips and postcards.
+
+**Leaderboard -> \`/leaderboard\`**
+See the top travelers by distance, biomes, embassies or stamps.
+
+**Postcards -> \`/postcard\` (in-game) / \`/postcards setup\`**
+Type \`/postcard [caption]\` in-game to send a postcard from where you stand; it lands in the postcards channel. Admins pick the channel with \`/postcards setup\`.
+
 **Feedback -> \`/feedback\`**
 Report a bug, request a feature, or share other feedback. Fill out a short form and it's filed straight to the developers, no need to leave Discord.
 
