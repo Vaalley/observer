@@ -9,7 +9,6 @@ ENV DENO_DIR=/home/app/.cache/deno
 COPY --chown=app:app deno.json deno.lock ./
 COPY --chown=app:app src ./src
 COPY --chown=app:app scripts ./scripts
-COPY --chown=app:app assets ./assets
 
 USER app
 RUN deno cache src/main.ts scripts/deploy-commands.ts
