@@ -52,11 +52,13 @@ export interface PassportResponse {
 	deaths: number;
 	crystalTrips: number;
 	postcards: number;
+	blocksMined: number;
 	stamps: PassportStamp[];
 	rank: {
 		distance: number;
 		biomes: number;
 		embassies: number;
+		mined: number;
 	};
 }
 
@@ -68,7 +70,7 @@ export interface PassportStamp {
 	at: number;
 }
 
-export type LeaderboardMetric = "distance" | "biomes" | "embassies" | "stamps";
+export type LeaderboardMetric = "distance" | "biomes" | "embassies" | "stamps" | "mined";
 
 export interface RegionRef {
 	id: string;

@@ -16,10 +16,10 @@ See who's online, a color-coded performance indicator.
 Admins can pin an auto-updating status embed in a channel; it refreshes every minute with who's online, session lengths, uptime, world time/weather, server performance, and today's peak.
 
 **Passport -> \`/passport\`**
-See a player's travel record: biomes, dimensions, regions and embassies visited, distance walked/ridden/flown/swum, stamps, crystal trips and postcards.
+See a player's travel record: biomes, dimensions, regions and embassies visited, distance walked/ridden/flown/swum, blocks mined, stamps, crystal trips and postcards.
 
 **Leaderboard -> \`/leaderboard\`**
-See the top travelers by distance, biomes, embassies or stamps.
+See the top travelers by distance, biomes, embassies, stamps or blocks mined.
 
 **Postcards -> \`/postcard\` (in-game) / \`/postcards setup\`**
 Type \`/postcard [caption]\` in-game to send a postcard from where you stand; it lands in the postcards channel. Admins pick the channel with \`/postcards setup\`.
