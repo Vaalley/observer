@@ -37,8 +37,9 @@ const fixture = {
 	deaths: 2,
 	crystalTrips: 4,
 	postcards: 2,
+	blocksMined: 12_345,
 	stamps: [],
-	rank: { distance: 3, biomes: 4, embassies: 2 },
+	rank: { distance: 3, biomes: 4, embassies: 2, mined: 5 },
 };
 
 Deno.test("formatDistance formats meters and kilometers", () => {
@@ -117,9 +118,13 @@ Deno.test("buildPassportEmbed shows biome totals, counters, and stamps", () => {
 		"postcards",
 	);
 	assert(
+		fields.some((field) => field.name === "Blocks mined" && field.value === "12,345"),
+		"blocks mined",
+	);
+	assert(
 		fields.some((field) =>
 			field.name === "Stamps" &&
-			field.value.includes("👣 🥾 🧭 · +11 locked") &&
+			field.value.includes("👣 🥾 🧭 · +35 locked") &&
 			field.value.indexOf("Second") < field.value.indexOf("Third")
 		),
 		"stamp field",
@@ -208,4 +213,7 @@ Deno.test("buildLeaderboardEmbed uses medals, numbering, and empty state", () =>
 		buildLeaderboardEmbed("stamps", [{ name: "Stamped", value: 3 }]).toJSON().description,
 		"🥇 Stamped — 3",
 	);
+	const mined = buildLeaderboardEmbed("mined", [{ name: "Dug", value: 123_456 }]).toJSON();
+	assertEqual(mined.description, "🥇 Dug — 123,456");
+	assertEqual(mined.title, "🏆 Top travelers — by blocks mined");
 });

@@ -8,7 +8,7 @@ import type {
 } from "./conduit/client.ts";
 import { weatherLabel, worldTimeLabel } from "./status.ts";
 
-export const STAMP_TOTAL = 14;
+export const STAMP_TOTAL = 38;
 
 export const DIMENSION_LABELS: Record<string, string> = {
 	"minecraft:overworld": "🌍 Overworld",
@@ -103,6 +103,11 @@ export function buildPassportEmbed(
 				inline: true,
 			},
 			{
+				name: "Blocks mined",
+				value: passport.blocksMined.toLocaleString("en-US"),
+				inline: true,
+			},
+			{
 				name: "Crystal trips",
 				value: String(passport.crystalTrips),
 				inline: true,
@@ -183,17 +188,27 @@ export function formatPostcardLine(event: PostcardEvent): string {
 
 const MEDALS = ["🥇", "🥈", "🥉"] as const;
 
+const METRIC_LABELS: Record<LeaderboardMetric, string> = {
+	distance: "distance",
+	biomes: "biomes",
+	embassies: "embassies",
+	stamps: "stamps",
+	mined: "blocks mined",
+};
+
 export function buildLeaderboardEmbed(
 	by: LeaderboardMetric,
 	entries: readonly TopEntry[],
 ): EmbedBuilder {
 	const description = entries.length === 0 ? "No travelers yet." : entries.map((entry, index) => {
 		const prefix = MEDALS[index] ?? `${index + 1}.`;
-		const value = by === "distance" ? formatDistance(entry.value) : String(entry.value);
+		const value = by === "distance"
+			? formatDistance(entry.value)
+			: entry.value.toLocaleString("en-US");
 		return `${prefix} ${escapeMarkdown(entry.name)} — ${value}`;
 	}).join("\n");
 	return new EmbedBuilder()
-		.setTitle(`🏆 Top travelers — by ${by}`)
+		.setTitle(`🏆 Top travelers — by ${METRIC_LABELS[by]}`)
 		.setDescription(description)
 		.setColor(Colors.Gold)
 		.setTimestamp();
